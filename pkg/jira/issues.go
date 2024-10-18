@@ -114,25 +114,20 @@ func (client *JiraClient) FetchAssignedIssues() ([]Issue, error) {
 	return searchResult.Issues, nil
 }
 
-func (client *JiraClient) FilterChanges(issue Issue, startDate, endDate time.Time) (IssueSummary, error) {
-	var comments []Comment
+// Helper function to filter status transitions within a date range and by author email
+func filterStatusTransitions(issue Issue, startDate, endDate time.Time, email string) ([]StatusTransition, error) {
 	var statusTransitions []StatusTransition
-
-	// Process changelog histories
 	for _, history := range issue.Changelog.Histories {
 		historyTime, err := time.Parse(constants.DateLayout, history.Created)
 		if err != nil {
-			return IssueSummary{}, err
+			return nil, err
 		}
-
 		if historyTime.Before(startDate) || historyTime.After(endDate) {
 			continue
 		}
-
-		if history.Author.EmailAddress != client.Email {
+		if history.Author.EmailAddress != email {
 			continue
 		}
-
 		for _, item := range history.Items {
 			if item.Field == "status" {
 				statusTransitions = append(statusTransitions, StatusTransition{
@@ -143,48 +138,109 @@ func (client *JiraClient) FilterChanges(issue Issue, startDate, endDate time.Tim
 			}
 		}
 	}
+	return statusTransitions, nil
+}
 
-	// Fetch and process comments
-	issueComments, err := client.FetchIssueComments(issue.Key)
+// Helper function to fetch and filter comments within a date range and by author email
+func (client *JiraClient) fetchIssueCommentsWithinDateRange(issueKey string, startDate, endDate time.Time, email string) ([]Comment, error) {
+	issueComments, err := client.FetchIssueComments(issueKey)
 	if err != nil {
-		return IssueSummary{}, err
+		return nil, err
 	}
-
+	var comments []Comment
 	for _, comment := range issueComments {
 		commentTime, err := time.Parse(constants.DateLayout, comment.Created)
 		if err != nil {
-			return IssueSummary{}, err
+			return nil, err
 		}
 		if commentTime.Before(startDate) || commentTime.After(endDate) {
 			continue
 		}
-		if comment.Author.EmailAddress != client.Email {
+		if comment.Author.EmailAddress != email {
 			continue
 		}
 		comments = append(comments, comment)
 	}
-
-	summary := IssueSummary{
-		Key:               issue.Key,
-		Link:              issue.Self,
-		Comments:          comments,
-		StatusTransitions: statusTransitions,
-	}
-
-	var lastStatusTransition StatusTransition
-
-	if len(statusTransitions) > 0 {
-		lastStatusTransition = statusTransitions[len(statusTransitions)-1]
-		summary.LastStatusTransition = lastStatusTransition
-	}
-	if len(comments) > 0 {
-		summary.LastComment = comments[len(comments)-1]
-	}
-
-	return summary, nil
+	return comments, nil
 }
 
-// fetchIssueComments retrieves comments for a specific issue.
+// FetchAssignedIssueSummariesByDate fetches issue summaries with changes grouped by date
+func (client *JiraClient) FetchAssignedIssueSummariesByDate(startDate, endDate time.Time) (map[string][]IssueSummary, error) {
+	summariesByDate := make(map[string]map[string]*IssueSummary)
+
+	// Fetch the assigned issues
+	issues, err := client.FetchAssignedIssues()
+	if err != nil {
+		return nil, err
+	}
+
+	// For each issue
+	for _, issue := range issues {
+		// Get status transitions
+		statusTransitions, err := filterStatusTransitions(issue, startDate, endDate, client.Email)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get comments
+		comments, err := client.fetchIssueCommentsWithinDateRange(issue.Key, startDate, endDate, client.Email)
+		if err != nil {
+			return nil, err
+		}
+
+		// Process status transitions
+		for _, st := range statusTransitions {
+			dateStr := st.Timestamp.Format(constants.DateLayoutInput)
+			if _, ok := summariesByDate[dateStr]; !ok {
+				summariesByDate[dateStr] = make(map[string]*IssueSummary)
+			}
+			issueSummary, ok := summariesByDate[dateStr][issue.Key]
+			if !ok {
+				issueSummary = &IssueSummary{
+					Key:  issue.Key,
+					Link: issue.Self,
+				}
+				summariesByDate[dateStr][issue.Key] = issueSummary
+			}
+			issueSummary.StatusTransitions = append(issueSummary.StatusTransitions, st)
+			issueSummary.LastStatusTransition = st
+		}
+
+		// Process comments
+		for _, c := range comments {
+			commentTime, err := time.Parse(constants.DateLayout, c.Created)
+			if err != nil {
+				return nil, err
+			}
+			dateStr := commentTime.Format(constants.DateLayoutInput)
+			if _, ok := summariesByDate[dateStr]; !ok {
+				summariesByDate[dateStr] = make(map[string]*IssueSummary)
+			}
+			issueSummary, ok := summariesByDate[dateStr][issue.Key]
+			if !ok {
+				issueSummary = &IssueSummary{
+					Key:  issue.Key,
+					Link: issue.Self,
+				}
+				summariesByDate[dateStr][issue.Key] = issueSummary
+			}
+			issueSummary.Comments = append(issueSummary.Comments, c)
+			issueSummary.LastComment = c
+		}
+	}
+
+	// Convert summariesByDate to map[string][]IssueSummary
+	finalSummariesByDate := make(map[string][]IssueSummary)
+	for dateStr, issueMap := range summariesByDate {
+		for _, summaryPtr := range issueMap {
+			finalSummariesByDate[dateStr] = append(finalSummariesByDate[dateStr], *summaryPtr)
+		}
+	}
+
+	return finalSummariesByDate, nil
+}
+
+// FetchIssueComments retrieves comments for a specific issue.
 func (client *JiraClient) FetchIssueComments(issueKey string) ([]Comment, error) {
 	reqURL := fmt.Sprintf("%s/rest/api/2/issue/%s/comment", client.BaseURL, issueKey)
 
@@ -217,114 +273,4 @@ func (client *JiraClient) FetchIssueComments(issueKey string) ([]Comment, error)
 	}
 
 	return commentResult.Comments, nil
-}
-
-func (client *JiraClient) FetchAssignedIssueSummariesByDate(startDate, endDate time.Time) (map[string][]IssueSummary, error) {
-	summariesByDate := make(map[string][]IssueSummary)
-
-	// Fetch the assigned issues
-	issues, err := client.FetchAssignedIssues()
-	if err != nil {
-		return nil, err
-	}
-
-	// For each issue
-	for _, issue := range issues {
-		// Process changelog histories
-		for _, history := range issue.Changelog.Histories {
-			// Parse the history created date
-			historyTime, err := time.Parse(constants.DateLayout, history.Created)
-			if err != nil {
-				return nil, err
-			}
-
-			// Check if historyTime is within startDate and endDate
-			if historyTime.Before(startDate) || historyTime.After(endDate) {
-				continue
-			}
-
-			// Format date string as MM/DD/YYYY
-			dateStr := historyTime.Format(constants.DateLayoutInput)
-
-			// Process items
-			for _, item := range history.Items {
-				// Consider status changes
-				if item.Field == "status" {
-					// Create StatusTransition
-					statusTransition := StatusTransition{
-						From:      item.FromString,
-						To:        item.ToString,
-						Timestamp: historyTime,
-					}
-
-					// Check if IssueSummary exists for this issue on this date
-					var issueSummary *IssueSummary
-					for i, summary := range summariesByDate[dateStr] {
-						if summary.Key == issue.Key {
-							issueSummary = &summariesByDate[dateStr][i]
-							break
-						}
-					}
-					if issueSummary == nil {
-						// Create new IssueSummary
-						newSummary := IssueSummary{
-							Key:               issue.Key,
-							Link:              issue.Self,
-							StatusTransitions: []StatusTransition{statusTransition},
-						}
-						summariesByDate[dateStr] = append(summariesByDate[dateStr], newSummary)
-					} else {
-						// Append statusTransition
-						issueSummary.StatusTransitions = append(issueSummary.StatusTransitions, statusTransition)
-					}
-				}
-			}
-		}
-
-		// Fetch comments for the issue
-		issueComments, err := client.FetchIssueComments(issue.Key)
-		if err != nil {
-			return nil, err
-		}
-
-		// Process comments
-		for _, comment := range issueComments {
-			// Parse comment created date
-			commentTime, err := time.Parse(constants.DateLayout, comment.Created)
-			if err != nil {
-				return nil, err
-			}
-
-			// Check if commentTime is within startDate and endDate
-			if commentTime.Before(startDate) || commentTime.After(endDate) {
-				continue
-			}
-
-			// Format date string as MM/DD/YYYY
-			dateStr := commentTime.Format("01/02/2006")
-
-			// Check if IssueSummary exists for this issue on this date
-			var issueSummary *IssueSummary
-			for i, summary := range summariesByDate[dateStr] {
-				if summary.Key == issue.Key {
-					issueSummary = &summariesByDate[dateStr][i]
-					break
-				}
-			}
-			if issueSummary == nil {
-				// Create new IssueSummary
-				newSummary := IssueSummary{
-					Key:      issue.Key,
-					Link:     issue.Self,
-					Comments: []Comment{comment},
-				}
-				summariesByDate[dateStr] = append(summariesByDate[dateStr], newSummary)
-			} else {
-				// Append comment
-				issueSummary.Comments = append(issueSummary.Comments, comment)
-			}
-		}
-	}
-
-	return summariesByDate, nil
 }

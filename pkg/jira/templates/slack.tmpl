@@ -1,5 +1,5 @@
 {{- range $date, $summariesByDate := . }}
-**{{ $date | toDayOfWeek }} ({{ $date }})**:
+*{{ $date | toDayOfWeek }} ({{ $date }})*:
 {{ range $summary := $summariesByDate }}
 _{{ $summary.Key }}_:
 {{- range $commentLine := $summary.LastComment.Body | toSlice }}

@@ -1,0 +1,23 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug Go for main",
+			"type": "go",
+			"request": "launch",
+			"mode": "debug",
+			"program": "${workspaceFolder}",
+			"envFile": "${workspaceFolder}/.env",
+			"args": [
+				"-email",
+				"${env.JIRA_EMAIL}",
+				"-url",
+				"${env.JIRA_URL}",
+				"-start",
+				"10/12/2024",
+				"-end",
+				"10/18/2024"
+			]
+		}
+	]
+}

@@ -1,6 +1,9 @@
-{{- range . }}
-{{ .Key }}: 
-{{- range $commentLine := .LastComment.Body | toSlice }}
-	- {{ $commentLine }}
+{{- range $date, $summariesByDate := . }}
+{{ $date | toDayOfWeek }} ({{ $date }}): 
+{{- range $summary := $summariesByDate }}
+	{{ $summary.Key }}:
+{{- range $commentLine := $summary.LastComment.Body | toSlice }}
+		- {{ $commentLine }}
+{{- end }}
 {{- end }}
 {{- end }}

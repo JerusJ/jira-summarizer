@@ -6,6 +6,8 @@ import (
 	"log"
 	"strings"
 	"text/template"
+
+	"github.com/jerusj/jira-summarizer/pkg/util"
 )
 
 var (
@@ -26,10 +28,15 @@ func toSlice(s string) []string {
 	return sLines
 }
 
+func toDayOfWeek(s string) string {
+	return util.GetDayOfWeekOrDie(s)
+}
+
 func init() {
 	var err error
 	templates = template.New("").Funcs(template.FuncMap{
-		"toSlice": toSlice,
+		"toSlice":     toSlice,
+		"toDayOfWeek": toDayOfWeek,
 	})
 	templates, err = templates.ParseFS(templateFiles, "templates/*.tmpl")
 	if err != nil {
@@ -38,6 +45,6 @@ func init() {
 }
 
 // RenderTemplate renders the template to a specified io.Writer
-func RenderTemplateFromSummaries(writer io.Writer, tmplName string, data []IssueSummary) error {
+func RenderTemplateFromSummariesByDate(writer io.Writer, tmplName string, data map[string][]IssueSummary) error {
 	return templates.ExecuteTemplate(writer, tmplName, data)
 }

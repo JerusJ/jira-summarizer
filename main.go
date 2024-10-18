@@ -52,24 +52,12 @@ func main() {
 
 	client := jira.NewJiraClient(*urlFlag, *emailFlag)
 
-	issues, err := client.FetchAssignedIssues()
+	allSummariesByDate, err := client.FetchAssignedIssueSummariesByDate(startDate, endDate)
 	if err != nil {
-		log.Fatalf("Error fetching issues: %v", err)
+		log.Fatalf("Error fetching issues by date: %v", err)
 	}
 
-	var summaries []jira.IssueSummary
-	for _, issue := range issues {
-		summary, err := client.FilterChanges(issue, startDate, endDate)
-		if err != nil {
-			log.Printf("Error processing issue %s: %v", issue.Key, err)
-			continue
-		}
-		if len(summary.Comments) > 0 || len(summary.StatusTransitions) > 0 {
-			summaries = append(summaries, summary)
-		}
-	}
-
-	err = jira.RenderTemplateFromSummaries(os.Stdout, "slack.tmpl", summaries)
+	err = jira.RenderTemplateFromSummariesByDate(os.Stdout, "slack.tmpl", allSummariesByDate)
 	if err != nil {
 		panic(err)
 	}

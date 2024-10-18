@@ -218,3 +218,113 @@ func (client *JiraClient) FetchIssueComments(issueKey string) ([]Comment, error)
 
 	return commentResult.Comments, nil
 }
+
+func (client *JiraClient) FetchAssignedIssueSummariesByDate(startDate, endDate time.Time) (map[string][]IssueSummary, error) {
+	summariesByDate := make(map[string][]IssueSummary)
+
+	// Fetch the assigned issues
+	issues, err := client.FetchAssignedIssues()
+	if err != nil {
+		return nil, err
+	}
+
+	// For each issue
+	for _, issue := range issues {
+		// Process changelog histories
+		for _, history := range issue.Changelog.Histories {
+			// Parse the history created date
+			historyTime, err := time.Parse(constants.DateLayout, history.Created)
+			if err != nil {
+				return nil, err
+			}
+
+			// Check if historyTime is within startDate and endDate
+			if historyTime.Before(startDate) || historyTime.After(endDate) {
+				continue
+			}
+
+			// Format date string as MM/DD/YYYY
+			dateStr := historyTime.Format(constants.DateLayoutInput)
+
+			// Process items
+			for _, item := range history.Items {
+				// Consider status changes
+				if item.Field == "status" {
+					// Create StatusTransition
+					statusTransition := StatusTransition{
+						From:      item.FromString,
+						To:        item.ToString,
+						Timestamp: historyTime,
+					}
+
+					// Check if IssueSummary exists for this issue on this date
+					var issueSummary *IssueSummary
+					for i, summary := range summariesByDate[dateStr] {
+						if summary.Key == issue.Key {
+							issueSummary = &summariesByDate[dateStr][i]
+							break
+						}
+					}
+					if issueSummary == nil {
+						// Create new IssueSummary
+						newSummary := IssueSummary{
+							Key:               issue.Key,
+							Link:              issue.Self,
+							StatusTransitions: []StatusTransition{statusTransition},
+						}
+						summariesByDate[dateStr] = append(summariesByDate[dateStr], newSummary)
+					} else {
+						// Append statusTransition
+						issueSummary.StatusTransitions = append(issueSummary.StatusTransitions, statusTransition)
+					}
+				}
+			}
+		}
+
+		// Fetch comments for the issue
+		issueComments, err := client.FetchIssueComments(issue.Key)
+		if err != nil {
+			return nil, err
+		}
+
+		// Process comments
+		for _, comment := range issueComments {
+			// Parse comment created date
+			commentTime, err := time.Parse(constants.DateLayout, comment.Created)
+			if err != nil {
+				return nil, err
+			}
+
+			// Check if commentTime is within startDate and endDate
+			if commentTime.Before(startDate) || commentTime.After(endDate) {
+				continue
+			}
+
+			// Format date string as MM/DD/YYYY
+			dateStr := commentTime.Format("01/02/2006")
+
+			// Check if IssueSummary exists for this issue on this date
+			var issueSummary *IssueSummary
+			for i, summary := range summariesByDate[dateStr] {
+				if summary.Key == issue.Key {
+					issueSummary = &summariesByDate[dateStr][i]
+					break
+				}
+			}
+			if issueSummary == nil {
+				// Create new IssueSummary
+				newSummary := IssueSummary{
+					Key:      issue.Key,
+					Link:     issue.Self,
+					Comments: []Comment{comment},
+				}
+				summariesByDate[dateStr] = append(summariesByDate[dateStr], newSummary)
+			} else {
+				// Append comment
+				issueSummary.Comments = append(issueSummary.Comments, comment)
+			}
+		}
+	}
+
+	return summariesByDate, nil
+}

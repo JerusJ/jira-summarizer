@@ -72,6 +72,9 @@ type IssueSummary struct {
 	Link              string
 	Comments          []Comment
 	StatusTransitions []StatusTransition
+
+	LastComment          Comment
+	LastStatusTransition StatusTransition
 }
 
 // fetchAssignedIssues retrieves all issues assigned to the current user.
@@ -166,6 +169,13 @@ func (client *JiraClient) FilterChanges(issue Issue, startDate, endDate time.Tim
 		Link:              issue.Self,
 		Comments:          comments,
 		StatusTransitions: statusTransitions,
+	}
+
+	if len(statusTransitions) > 0 {
+		summary.LastStatusTransition = statusTransitions[len(statusTransitions)-1]
+	}
+	if len(comments) > 0 {
+		summary.LastComment = comments[len(comments)-1]
 	}
 
 	return summary, nil

@@ -4,14 +4,8 @@ import (
 	"embed"
 	"io"
 	"log"
+	"strings"
 	"text/template"
-)
-
-type TemplateType string
-
-const (
-	_ = iota
-	TemplateSlack
 )
 
 var (
@@ -20,9 +14,15 @@ var (
 	templates     *template.Template
 )
 
+func toSlice(s string) []string {
+	return strings.Split(s, "\n")
+}
+
 func init() {
 	var err error
-	// Parse all .tmpl files in the "templates" directory
+	templates = template.New("").Funcs(template.FuncMap{
+		"toSlice": toSlice,
+	})
 	templates, err = template.ParseFS(templateFiles, "templates/*.tmpl")
 	if err != nil {
 		log.Fatalf("Failed to parse templates: %v", err)

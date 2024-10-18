@@ -1,7 +1,11 @@
 package jira
 
 import (
+	"bytes"
+	"context"
 	"encoding/base64"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -34,14 +38,14 @@ func NewJiraClient(baseURL, email string) *JiraClient {
 	if baseURL == "" {
 		baseURL = util.GetEnvOrDie(ENV_JIRA_URL)
 		if baseURL == "" {
-			panic("Jira BASE URL cannot be empty")
+			panic("jira BASE URL cannot be empty")
 		}
 	}
 	email = strings.TrimSpace(email)
 	if email == "" {
 		email = util.GetEnvOrDie(ENV_JIRA_EMAIL)
 		if email == "" {
-			panic("Jira user email cannot be empty")
+			panic("jira user email cannot be empty")
 		}
 	}
 
@@ -63,4 +67,36 @@ func NewJiraClient(baseURL, email string) *JiraClient {
 		Email:      email,
 		headers:    headers,
 	}
+}
+
+func (c *JiraClient) makeRequest(ctx context.Context, reqMethod string, url string, data []byte) (respBytes []byte, err error) {
+	body := bytes.NewReader(data)
+
+	req, err := http.NewRequestWithContext(ctx, reqMethod, url, body)
+	if err != nil {
+		return
+	}
+
+	for k, v := range c.headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("cannot '%s': status code not OK: '%s'", reqMethod, resp.Status)
+		return
+	}
+
+	respBytes, err = io.ReadAll(resp.Body)
+	if err != nil {
+		err = fmt.Errorf("cannot '%s': '%s'", reqMethod, err)
+		return
+	}
+
+	return
 }

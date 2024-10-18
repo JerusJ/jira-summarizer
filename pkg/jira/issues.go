@@ -1,10 +1,9 @@
 package jira
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"time"
 
@@ -78,27 +77,12 @@ type IssueSummary struct {
 }
 
 // fetchAssignedIssues retrieves all issues assigned to the current user.
-func (client *JiraClient) FetchAssignedIssues() ([]Issue, error) {
+func (client *JiraClient) FetchAssignedIssues(ctx context.Context) ([]Issue, error) {
 	apiURL := fmt.Sprintf("%s/rest/api/2/search", client.BaseURL)
 	jql := url.QueryEscape("assignee = currentUser()")
 	reqURL := fmt.Sprintf("%s?jql=%s&expand=changelog", apiURL, jql)
 
-	req, err := http.NewRequest("GET", reqURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	for k, v := range client.headers {
-		req.Header.Add(k, v)
-	}
-
-	resp, err := client.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := client.makeRequest(ctx, "GET", reqURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +126,8 @@ func filterStatusTransitions(issue Issue, startDate, endDate time.Time, email st
 }
 
 // Helper function to fetch and filter comments within a date range and by author email
-func (client *JiraClient) fetchIssueCommentsWithinDateRange(issueKey string, startDate, endDate time.Time, email string) ([]Comment, error) {
-	issueComments, err := client.FetchIssueComments(issueKey)
+func (client *JiraClient) fetchIssueCommentsWithinDateRange(ctx context.Context, issueKey string, startDate, endDate time.Time, email string) ([]Comment, error) {
+	issueComments, err := client.FetchIssueComments(ctx, issueKey)
 	if err != nil {
 		return nil, err
 	}
@@ -165,11 +149,11 @@ func (client *JiraClient) fetchIssueCommentsWithinDateRange(issueKey string, sta
 }
 
 // FetchAssignedIssueSummariesByDate fetches issue summaries with changes grouped by date
-func (client *JiraClient) FetchAssignedIssueSummariesByDate(startDate, endDate time.Time) (map[string][]IssueSummary, error) {
+func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context, startDate, endDate time.Time) (map[string][]IssueSummary, error) {
 	summariesByDate := make(map[string]map[string]*IssueSummary)
 
 	// Fetch the assigned issues
-	issues, err := client.FetchAssignedIssues()
+	issues, err := client.FetchAssignedIssues(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +167,7 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDate(startDate, endDate t
 		}
 
 		// Get comments
-		comments, err := client.fetchIssueCommentsWithinDateRange(issue.Key, startDate, endDate, client.Email)
+		comments, err := client.fetchIssueCommentsWithinDateRange(ctx, issue.Key, startDate, endDate, client.Email)
 		if err != nil {
 			return nil, err
 		}
@@ -241,25 +225,10 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDate(startDate, endDate t
 }
 
 // FetchIssueComments retrieves comments for a specific issue.
-func (client *JiraClient) FetchIssueComments(issueKey string) ([]Comment, error) {
+func (client *JiraClient) FetchIssueComments(ctx context.Context, issueKey string) ([]Comment, error) {
 	reqURL := fmt.Sprintf("%s/rest/api/2/issue/%s/comment", client.BaseURL, issueKey)
 
-	req, err := http.NewRequest("GET", reqURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	for k, v := range client.headers {
-		req.Header.Add(k, v)
-	}
-
-	resp, err := client.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := client.makeRequest(ctx, "GET", reqURL, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"os"
@@ -46,9 +47,11 @@ func main() {
 
 	client := jira.NewJiraClient(*urlFlag, *emailFlag)
 
-	allSummariesByDate, err := client.FetchAssignedIssueSummariesByDate(startDate, endDate)
+	ctx := context.Background()
+
+	allSummariesByDate, err := client.FetchAssignedIssueSummariesByDate(ctx, startDate, endDate)
 	if err != nil {
-		log.Fatalf("Error fetching issues by date: %v", err)
+		log.Fatalf("error fetching issues by date: %v", err)
 	}
 
 	err = jira.RenderTemplateFromSummariesByDate(os.Stdout, *templateFlag+".tmpl", allSummariesByDate)

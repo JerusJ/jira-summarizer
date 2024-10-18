@@ -21,12 +21,6 @@ var (
 func main() {
 	flag.Parse()
 
-	if *emailFlag == "" {
-		panic("-email cannot be empty")
-	}
-	if *urlFlag == "" {
-		panic("-url cannot be empty")
-	}
 	if *startFlag == "" {
 		panic("-start cannot be empty")
 	}

@@ -11,6 +11,8 @@ import (
 
 const (
 	ENV_JIRA_API_TOKEN = "JIRA_API_TOKEN"
+	ENV_JIRA_URL       = "JIRA_URL"
+	ENV_JIRA_EMAIL     = "JIRA_EMAIL"
 )
 
 var (
@@ -31,10 +33,16 @@ func NewJiraClient(baseURL, email string) *JiraClient {
 	baseURL = strings.TrimSpace(baseURL)
 	email = strings.TrimSpace(email)
 	if baseURL == "" {
-		panic("Jira BASE URL cannot be empty")
+		baseURL = util.GetEnvOrDie(ENV_JIRA_URL)
+		if baseURL == "" {
+			panic("Jira BASE URL cannot be empty")
+		}
 	}
 	if email == "" {
-		panic("Jira user email cannot be empty")
+		email = util.GetEnvOrDie(ENV_JIRA_EMAIL)
+		if email == "" {
+			panic("Jira user email cannot be empty")
+		}
 	}
 
 	apiToken := util.GetEnvOrDie(ENV_JIRA_API_TOKEN)

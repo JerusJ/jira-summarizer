@@ -9,10 +9,6 @@
 			"program": "${workspaceFolder}",
 			"envFile": "${workspaceFolder}/.env",
 			"args": [
-				"-email",
-				"${env.JIRA_EMAIL}",
-				"-url",
-				"${env.JIRA_URL}",
 				"-start",
 				"10/12/2024",
 				"-end",

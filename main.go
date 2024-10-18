@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	emailFlag        = flag.String("email", "", "Email username for Jira Server")
-	urlFlag          = flag.String("url", "", "URL to the Jira server")
-	startFlag        = flag.String("start", "", "Start date range (MM/DD/YYYY)")
-	endFlag          = flag.String("end", "", "End date range (MM/DD/YYYY)")
-	templateNameFlag = flag.String("template-name", "slack", "Name of Go Text Template (.tmpl) in this repo to use for output.")
+	emailFlag    = flag.String("email", "", "Email username for Jira Server")
+	urlFlag      = flag.String("url", "", "URL to the Jira server")
+	startFlag    = flag.String("start", "", "Start date range (MM/DD/YYYY)")
+	endFlag      = flag.String("end", "", "End date range (MM/DD/YYYY)")
+	templateFlag = flag.String("template", "slack", "Name of Go Text Template (.tmpl) in this repo to use for output.")
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 	if *endFlag == "" {
 		panic("-start cannot be empty")
 	}
-	if *templateNameFlag == "" {
+	if *templateFlag == "" {
 		panic("-output-type cannot be empty")
 	}
 
@@ -51,7 +51,7 @@ func main() {
 		log.Fatalf("Error fetching issues by date: %v", err)
 	}
 
-	err = jira.RenderTemplateFromSummariesByDate(os.Stdout, *templateNameFlag+".tmpl", allSummariesByDate)
+	err = jira.RenderTemplateFromSummariesByDate(os.Stdout, *templateFlag+".tmpl", allSummariesByDate)
 	if err != nil {
 		panic(err)
 	}

@@ -31,13 +31,13 @@ type JiraClient struct {
 // NewJiraClient initializes and returns a new JiraClient.
 func NewJiraClient(baseURL, email string) *JiraClient {
 	baseURL = strings.TrimSpace(baseURL)
-	email = strings.TrimSpace(email)
 	if baseURL == "" {
 		baseURL = util.GetEnvOrDie(ENV_JIRA_URL)
 		if baseURL == "" {
 			panic("Jira BASE URL cannot be empty")
 		}
 	}
+	email = strings.TrimSpace(email)
 	if email == "" {
 		email = util.GetEnvOrDie(ENV_JIRA_EMAIL)
 		if email == "" {

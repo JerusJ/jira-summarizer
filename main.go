@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/jerusj/jira-summarizer/pkg/constants"
@@ -11,10 +11,11 @@ import (
 )
 
 var (
-	emailFlag = flag.String("email", "", "Email username for Jira Server")
-	urlFlag   = flag.String("url", "", "URL to the Jira server")
-	startFlag = flag.String("start", "", "Start date range (MM/DD/YYYY)")
-	endFlag   = flag.String("end", "", "End date range (MM/DD/YYYY)")
+	emailFlag      = flag.String("email", "", "Email username for Jira Server")
+	urlFlag        = flag.String("url", "", "URL to the Jira server")
+	startFlag      = flag.String("start", "", "Start date range (MM/DD/YYYY)")
+	endFlag        = flag.String("end", "", "End date range (MM/DD/YYYY)")
+	outputTypeFlag = flag.String("output-type", "text", "Type of output to present to STDOUT")
 )
 
 func main() {
@@ -31,6 +32,9 @@ func main() {
 	}
 	if *endFlag == "" {
 		panic("-start cannot be empty")
+	}
+	if *outputTypeFlag == "" {
+		panic("-output-type cannot be empty")
 	}
 
 	startDate, err := time.ParseInLocation(constants.DateLayoutInput, *startFlag, constants.DateLayoutLocation)
@@ -65,17 +69,8 @@ func main() {
 		}
 	}
 
-	// Output the summaries
-	for _, summary := range summaries {
-		fmt.Printf("Issue: %s\nLink: %s\n", summary.Key, summary.Link)
-		fmt.Println("Comments:")
-		for _, comment := range summary.Comments {
-			fmt.Printf("- %s\n", comment.Body)
-		}
-		fmt.Println("Status Transitions:")
-		for _, transition := range summary.StatusTransitions {
-			fmt.Printf("- From '%s' to '%s' at %s\n", transition.From, transition.To, transition.Timestamp)
-		}
-		fmt.Println("-------------------------------")
+	err = jira.RenderTemplateFromSummaries(os.Stdout, "slack.tmpl", summaries)
+	if err != nil {
+		panic(err)
 	}
 }

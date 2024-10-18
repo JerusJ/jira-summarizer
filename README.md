@@ -16,7 +16,7 @@ You will need the following:
     - Base URL to your Jira on-prem/cloud instance 
     - I.E. `https://<NAME>.atlassian.net`
 - `JIRA_EMAIL` 
-    - Your sign-in email address to the jira instance 
+    - Your user's sign-in email address to the Jira instance 
     - I.E. `foo.bar@baz.com`
 
 ## Usage

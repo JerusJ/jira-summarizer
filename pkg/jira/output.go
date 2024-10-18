@@ -2,8 +2,10 @@ package jira
 
 import (
 	"embed"
+	"fmt"
 	"io"
 	"log"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -14,6 +16,8 @@ var (
 	//go:embed templates/*.tmpl
 	templateFiles embed.FS
 	templates     *template.Template
+
+	regexpJiraSmartlink = regexp.MustCompile(`(\[.*\|.*\])`)
 )
 
 func toSlice(s string) []string {
@@ -28,6 +32,18 @@ func toSlice(s string) []string {
 	return sLines
 }
 
+func cleanJiraLinks(s string) string {
+	sNew := s
+	smartlinks := regexpJiraSmartlink.FindAllString(s, -1)
+	for _, smartlink := range smartlinks {
+		actualLink := strings.Split(smartlink, "|")[0]
+		actualLink = strings.ReplaceAll(actualLink, "[", "")
+		actualLink = fmt.Sprintf("[%s](%s)", actualLink, actualLink)
+		sNew = strings.ReplaceAll(sNew, smartlink, actualLink)
+	}
+	return sNew
+}
+
 func toDayOfWeek(s string) string {
 	return util.GetDayOfWeekOrDie(s)
 }
@@ -35,8 +51,9 @@ func toDayOfWeek(s string) string {
 func init() {
 	var err error
 	templates = template.New("").Funcs(template.FuncMap{
-		"toSlice":     toSlice,
-		"toDayOfWeek": toDayOfWeek,
+		"toSlice":        toSlice,
+		"cleanJiraLinks": cleanJiraLinks,
+		"toDayOfWeek":    toDayOfWeek,
 	})
 	templates, err = templates.ParseFS(templateFiles, "templates/*.tmpl")
 	if err != nil {

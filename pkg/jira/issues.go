@@ -147,6 +147,9 @@ func (client *JiraClient) fetchIssueCommentsWithinDateRange(ctx context.Context,
 	}
 	return comments, nil
 }
+func (client *JiraClient) getLink(key string) string {
+	return fmt.Sprintf("%s/browse/%s", client.BaseURL, key)
+}
 
 // FetchAssignedIssueSummariesByDate fetches issue summaries with changes grouped by date
 func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context, startDate, endDate time.Time) (map[string][]IssueSummary, error) {
@@ -182,7 +185,7 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context,
 			if !ok {
 				issueSummary = &IssueSummary{
 					Key:  issue.Key,
-					Link: issue.Self,
+					Link: client.getLink(issue.Key),
 				}
 				summariesByDate[dateStr][issue.Key] = issueSummary
 			}
@@ -204,7 +207,7 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context,
 			if !ok {
 				issueSummary = &IssueSummary{
 					Key:  issue.Key,
-					Link: issue.Self,
+					Link: client.getLink(issue.Key),
 				}
 				summariesByDate[dateStr][issue.Key] = issueSummary
 			}

@@ -1,9 +1,9 @@
 {{- range $date, $summariesByDate := . }}
 *{{ $date | toDayOfWeek }} ({{ $date }})*:
 {{ range $summary := $summariesByDate }}
-_{{ $summary.Key }}_:
+_[{{ $summary.Key }}]({{ $summary.Link }})_:
 {{- range $commentLine := $summary.LastComment.Body | toSlice }}
->{{ $commentLine }}
+>{{ $commentLine | cleanJiraLinks }}
 {{- end }}
 {{- end }}
 {{ end }}

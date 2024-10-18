@@ -1,5 +1,6 @@
-{{ range . }}
+{{- range . }}
 {{ .Key }}: 
-{{ range $commentLine := .LastComment.Body | toSlice }}
+{{- range $commentLine := .LastComment.Body | toSlice }}
 	- {{ $commentLine }}
-{{ end }}
+{{- end }}
+{{- end }}

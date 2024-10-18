@@ -15,7 +15,15 @@ var (
 )
 
 func toSlice(s string) []string {
-	return strings.Split(s, "\n")
+	var sLines []string
+	sSplit := strings.Split(s, "\n")
+	for _, line := range sSplit {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			sLines = append(sLines, line)
+		}
+	}
+	return sLines
 }
 
 func init() {
@@ -23,7 +31,7 @@ func init() {
 	templates = template.New("").Funcs(template.FuncMap{
 		"toSlice": toSlice,
 	})
-	templates, err = template.ParseFS(templateFiles, "templates/*.tmpl")
+	templates, err = templates.ParseFS(templateFiles, "templates/*.tmpl")
 	if err != nil {
 		log.Fatalf("Failed to parse templates: %v", err)
 	}

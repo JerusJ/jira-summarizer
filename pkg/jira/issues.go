@@ -171,8 +171,11 @@ func (client *JiraClient) FilterChanges(issue Issue, startDate, endDate time.Tim
 		StatusTransitions: statusTransitions,
 	}
 
+	var lastStatusTransition StatusTransition
+
 	if len(statusTransitions) > 0 {
-		summary.LastStatusTransition = statusTransitions[len(statusTransitions)-1]
+		lastStatusTransition = statusTransitions[len(statusTransitions)-1]
+		summary.LastStatusTransition = lastStatusTransition
 	}
 	if len(comments) > 0 {
 		summary.LastComment = comments[len(comments)-1]

@@ -76,7 +76,7 @@ type IssueSummary struct {
 	LastStatusTransition StatusTransition
 }
 
-// fetchAssignedIssues retrieves all issues assigned to the current user.
+// FetchAssignedIssues retrieves all issues assigned to the current user.
 func (client *JiraClient) FetchAssignedIssues(ctx context.Context) ([]Issue, error) {
 	apiURL := fmt.Sprintf("%s/rest/api/2/search", client.BaseURL)
 	jql := url.QueryEscape("assignee = currentUser()")
@@ -147,35 +147,31 @@ func (client *JiraClient) fetchIssueCommentsWithinDateRange(ctx context.Context,
 	}
 	return comments, nil
 }
-func (client *JiraClient) getLink(key string) string {
-	return fmt.Sprintf("%s/browse/%s", client.BaseURL, key)
+
+func (client *JiraClient) getLink(issueKey string) string {
+	return fmt.Sprintf("%s/browse/%s", client.BaseURL, issueKey)
 }
 
 // FetchAssignedIssueSummariesByDate fetches issue summaries with changes grouped by date
 func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context, startDate, endDate time.Time) (map[string][]IssueSummary, error) {
 	summariesByDate := make(map[string]map[string]*IssueSummary)
 
-	// Fetch the assigned issues
 	issues, err := client.FetchAssignedIssues(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// For each issue
 	for _, issue := range issues {
-		// Get status transitions
 		statusTransitions, err := filterStatusTransitions(issue, startDate, endDate, client.Email)
 		if err != nil {
 			return nil, err
 		}
 
-		// Get comments
 		comments, err := client.fetchIssueCommentsWithinDateRange(ctx, issue.Key, startDate, endDate, client.Email)
 		if err != nil {
 			return nil, err
 		}
 
-		// Process status transitions
 		for _, st := range statusTransitions {
 			dateStr := st.Timestamp.Format(constants.DateLayoutInput)
 			if _, ok := summariesByDate[dateStr]; !ok {
@@ -193,7 +189,6 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context,
 			issueSummary.LastStatusTransition = st
 		}
 
-		// Process comments
 		for _, c := range comments {
 			commentTime, err := time.Parse(constants.DateLayout, c.Created)
 			if err != nil {
@@ -216,7 +211,6 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context,
 		}
 	}
 
-	// Convert summariesByDate to map[string][]IssueSummary
 	finalSummariesByDate := make(map[string][]IssueSummary)
 	for dateStr, issueMap := range summariesByDate {
 		for _, summaryPtr := range issueMap {

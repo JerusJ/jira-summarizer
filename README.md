@@ -1,6 +1,11 @@
 # Jira Summarizer
 
-Summarize Jira issues in between a start and end date range (`MM/DD/YY`)
+Summarize a user's changed Jira issues in between a start and end date range (`MM/DD/YY`)
+
+This will, for the specified user:
+
+- Grab issues that have changed status transitions within the date range (I.E. `To Do --> In Progress`)
+- Grab the user's comments in those issues, also within the date range
 
 ## Install
 

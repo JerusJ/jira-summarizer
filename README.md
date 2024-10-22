@@ -27,6 +27,8 @@ You will need the following:
 
 ## Usage
 
-Run: `jira-summarizer --template=slack --start=10/17/2024 --end=10/18/2024`
+- Start between two ranges: `jira-summarizer --template=slack --start=10/17/2024 --end=10/18/2024`
+- Yesterday to today: `jira-summarizer --template=slack --start=$(date -d "yesterday" +"%m/%d/%Y") --end=$(date +"%m/%d/%Y")`
+- Just today: `jira-summarizer  --template=slack --start=$(date +"%m/%d/%Y") --end=$(date +"%m/%d/%Y")`
 
 For available templates, see the directory: `./pkg/jira/templates/`

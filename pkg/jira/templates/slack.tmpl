@@ -3,7 +3,7 @@
 {{ range $summary := $summariesByDate }}
 _[{{ $summary.Key }}]({{ $summary.Link }}) ({{ $summary.LastStatusTransition.From }} --> {{  $summary.LastStatusTransition.To }})_:
 {{- range $commentLine := $summary.LastComment.Body | toSlice }}
->{{ $commentLine | cleanJiraLinks }}
+>{{ $commentLine | cleanJiraLinks | cleanJiraImages }}
 {{- end }}
 {{- end }}
 {{ end }}

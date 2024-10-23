@@ -18,6 +18,7 @@ var (
 	templates     *template.Template
 
 	regexpJiraSmartlink = regexp.MustCompile(`(\[.*\|.*\])`)
+	regexpJiraImage     = regexp.MustCompile(`!image-[^!]+!`)
 )
 
 func toSlice(s string) []string {
@@ -44,6 +45,11 @@ func cleanJiraLinks(s string) string {
 	return sNew
 }
 
+func cleanJiraImages(s string) string {
+	sNew := regexpJiraImage.ReplaceAllString(s, "(see image in Jira issue)")
+	return sNew
+}
+
 func toDayOfWeek(s string) string {
 	return util.GetDayOfWeekOrDie(s)
 }
@@ -51,9 +57,10 @@ func toDayOfWeek(s string) string {
 func init() {
 	var err error
 	templates = template.New("").Funcs(template.FuncMap{
-		"toSlice":        toSlice,
-		"cleanJiraLinks": cleanJiraLinks,
-		"toDayOfWeek":    toDayOfWeek,
+		"toSlice":         toSlice,
+		"cleanJiraLinks":  cleanJiraLinks,
+		"cleanJiraImages": cleanJiraImages,
+		"toDayOfWeek":     toDayOfWeek,
 	})
 	templates, err = templates.ParseFS(templateFiles, "templates/*.tmpl")
 	if err != nil {

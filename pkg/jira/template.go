@@ -17,7 +17,8 @@ var (
 	templateFiles embed.FS
 	templates     *template.Template
 
-	regexpJiraSmartlink = regexp.MustCompile(`(\[.*\|.*\])`)
+	regexpJiraSmartlink = regexp.MustCompile(`\[(.*?\|.*?)\]`)
+	regexpJiraMention   = regexp.MustCompile(`\[~accountid:([^\]]+)\]`)
 	regexpJiraImage     = regexp.MustCompile(`!image-[^!]+!`)
 )
 
@@ -33,14 +34,27 @@ func toSlice(s string) []string {
 	return sLines
 }
 
-func cleanJiraLinks(s string) string {
+func toMarkdownLinks(s string) string {
 	sNew := s
 	smartlinks := regexpJiraSmartlink.FindAllString(s, -1)
 	for _, smartlink := range smartlinks {
-		actualLink := strings.Split(smartlink, "|")[0]
-		actualLink = strings.ReplaceAll(actualLink, "[", "")
-		actualLink = fmt.Sprintf("[%s](%s)", actualLink, actualLink)
-		sNew = strings.ReplaceAll(sNew, smartlink, actualLink)
+		smartLinkParts := strings.Split(smartlink, "|")
+		alias := smartLinkParts[0]
+		alias = strings.TrimLeft(alias, "[")
+		url := smartLinkParts[1]
+		url = strings.TrimRight(url, "]")
+		markdownLink := fmt.Sprintf("[%s](%s)", alias, url)
+		sNew = strings.ReplaceAll(sNew, smartlink, markdownLink)
+	}
+	return sNew
+}
+
+// TODO(jesse): lookup user ID beforehand to transform comments so we don't need to do this?
+func cleanJiraUserMentions(s string) string {
+	sNew := s
+	userMentions := regexpJiraMention.FindAllString(s, -1)
+	for _, userMention := range userMentions {
+		sNew = strings.ReplaceAll(sNew, userMention, "<JIRA_USER>")
 	}
 	return sNew
 }
@@ -57,10 +71,11 @@ func toDayOfWeek(s string) string {
 func init() {
 	var err error
 	templates = template.New("").Funcs(template.FuncMap{
-		"toSlice":         toSlice,
-		"cleanJiraLinks":  cleanJiraLinks,
-		"cleanJiraImages": cleanJiraImages,
-		"toDayOfWeek":     toDayOfWeek,
+		"toSlice":               toSlice,
+		"toMarkdownLinks":       toMarkdownLinks,
+		"cleanJiraUserMentions": cleanJiraUserMentions,
+		"cleanJiraImages":       cleanJiraImages,
+		"toDayOfWeek":           toDayOfWeek,
 	})
 	templates, err = templates.ParseFS(templateFiles, "templates/*.tmpl")
 	if err != nil {
@@ -69,6 +84,6 @@ func init() {
 }
 
 // RenderTemplate renders the template to a specified io.Writer
-func RenderTemplateFromSummariesByDate(writer io.Writer, tmplName string, data map[string][]IssueSummary) error {
+func RenderTemplateFromSummariesByDate(writer io.Writer, tmplName string, data map[string]map[string][]IssueSummary) error {
 	return templates.ExecuteTemplate(writer, tmplName, data)
 }

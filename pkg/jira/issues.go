@@ -3,11 +3,14 @@ package jira
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/jerusj/jira-summarizer/pkg/constants"
+	"golang.org/x/sync/errgroup"
 )
 
 // Issue represents a Jira issue.
@@ -37,8 +40,10 @@ type History struct {
 
 // User represents a Jira user.
 type User struct {
-	DisplayName  string `json:"displayName"`
+	AccountID    string `json:"accountId"`
 	EmailAddress string `json:"emailAddress"`
+	DisplayName  string `json:"displayName"`
+	Active       bool   `json:"active"`
 }
 
 // HistoryItem represents a single change item in a history record.
@@ -76,11 +81,16 @@ type IssueSummary struct {
 	LastStatusTransition StatusTransition
 }
 
-// FetchAssignedIssues retrieves all issues assigned to the current user.
-func (client *JiraClient) FetchAssignedIssues(ctx context.Context) ([]Issue, error) {
+// FetchAssignedIssues retrieves all issues assigned to the current user between specified date ranges.
+func (client *JiraClient) FetchAssignedIssues(ctx context.Context, user string, start, end time.Time) ([]Issue, error) {
 	apiURL := fmt.Sprintf("%s/rest/api/2/search", client.BaseURL)
-	jql := url.QueryEscape("assignee = currentUser()")
-	reqURL := fmt.Sprintf("%s?jql=%s&expand=changelog", apiURL, jql)
+	jql := fmt.Sprintf(
+		"assignee = %s AND createdDate >= \"%s\" AND createdDate <= \"%s\"",
+		user,
+		start.Format("2006-01-02"),
+		end.Format("2006-01-02"),
+	)
+	reqURL := fmt.Sprintf("%s?jql=%s&expand=changelog", apiURL, url.QueryEscape(jql))
 
 	bodyBytes, err := client.makeRequest(ctx, "GET", reqURL, nil)
 	if err != nil {
@@ -126,7 +136,7 @@ func filterStatusTransitions(issue Issue, startDate, endDate time.Time, email st
 }
 
 // Helper function to fetch and filter comments within a date range and by author email
-func (client *JiraClient) fetchIssueCommentsWithinDateRange(ctx context.Context, issueKey string, startDate, endDate time.Time, email string) ([]Comment, error) {
+func (client *JiraClient) fetchIssueCommentsWithinDateRange(ctx context.Context, issueKey string, startDate, endDate time.Time, userId string) ([]Comment, error) {
 	issueComments, err := client.FetchIssueComments(ctx, issueKey)
 	if err != nil {
 		return nil, err
@@ -140,7 +150,7 @@ func (client *JiraClient) fetchIssueCommentsWithinDateRange(ctx context.Context,
 		if commentTime.Before(startDate) || commentTime.After(endDate) {
 			continue
 		}
-		if comment.Author.EmailAddress != email {
+		if comment.Author.AccountID != userId && comment.Author.EmailAddress != userId {
 			continue
 		}
 		comments = append(comments, comment)
@@ -151,23 +161,64 @@ func (client *JiraClient) fetchIssueCommentsWithinDateRange(ctx context.Context,
 func (client *JiraClient) getLink(issueKey string) string {
 	return fmt.Sprintf("%s/browse/%s", client.BaseURL, issueKey)
 }
+func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context, startDate, endDate time.Time, users []string) (map[string]map[string][]IssueSummary, error) {
+	summariesByDateForAllUsers := make(map[string]map[string][]IssueSummary)
+
+	eg, gctx := errgroup.WithContext(ctx)
+	eg.SetLimit(constants.MaxParallel)
+
+	for _, user := range users {
+		eg.Go(func() error {
+			var userId string
+			if strings.Contains(user, "@") {
+				// we're an email, get the user ID from the cache/API
+				user, err := client.FetchUser(gctx, user)
+				if err != nil {
+					return err
+				}
+				userId = user.AccountID
+			} else {
+				userId = user
+			}
+
+			summaryByDateForUser, err := client.FetchAssignedIssueSummariesByDateForUser(gctx, startDate, endDate, userId)
+			if err != nil {
+				return err
+			}
+
+			client.mu.Lock()
+			summariesByDateForAllUsers[user] = summaryByDateForUser
+			client.mu.Unlock()
+			return nil
+		})
+	}
+
+	err := eg.Wait()
+
+	return summariesByDateForAllUsers, err
+}
 
 // FetchAssignedIssueSummariesByDate fetches issue summaries with changes grouped by date
-func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context, startDate, endDate time.Time) (map[string][]IssueSummary, error) {
+func (client *JiraClient) FetchAssignedIssueSummariesByDateForUser(ctx context.Context, startDate, endDate time.Time, userId string) (map[string][]IssueSummary, error) {
+	finalSummariesByDate := make(map[string][]IssueSummary)
 	summariesByDate := make(map[string]map[string]*IssueSummary)
 
-	issues, err := client.FetchAssignedIssues(ctx)
+	if userId == "" {
+		return finalSummariesByDate, errors.New("cannot fetch assigned issue summary for empty user")
+	}
+
+	issues, err := client.FetchAssignedIssues(ctx, userId, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, issue := range issues {
-		statusTransitions, err := filterStatusTransitions(issue, startDate, endDate, client.Email)
+		statusTransitions, err := filterStatusTransitions(issue, startDate, endDate, userId)
 		if err != nil {
 			return nil, err
 		}
 
-		comments, err := client.fetchIssueCommentsWithinDateRange(ctx, issue.Key, startDate, endDate, client.Email)
+		comments, err := client.fetchIssueCommentsWithinDateRange(ctx, issue.Key, startDate, endDate, userId)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +262,6 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDate(ctx context.Context,
 		}
 	}
 
-	finalSummariesByDate := make(map[string][]IssueSummary)
 	for dateStr, issueMap := range summariesByDate {
 		for _, summaryPtr := range issueMap {
 			finalSummariesByDate[dateStr] = append(finalSummariesByDate[dateStr], *summaryPtr)

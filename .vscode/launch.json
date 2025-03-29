@@ -2,17 +2,17 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Debug Go for main",
-			"type": "go",
+			"name": "Debug - Main",
+			"type": "delve",
 			"request": "launch",
 			"mode": "debug",
 			"program": "${workspaceFolder}",
 			"envFile": "${workspaceFolder}/.env",
 			"args": [
 				"-start",
-				"10/12/2024",
+				"03/24/2025",
 				"-end",
-				"10/18/2024"
+				"03/29/2025"
 			]
 		}
 	]

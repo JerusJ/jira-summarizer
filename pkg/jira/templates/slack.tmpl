@@ -1,13 +1,17 @@
-{{- range $date, $summariesByDate := . }}
+{{- range $userName, $userSummaries := . }}
+*{{ $userName }}*:
+  {{- range $date, $summariesByDate := $userSummaries }}
 *{{ $date | toDayOfWeek }} ({{ $date }})*:
-{{ range $summary := $summariesByDate }}
-{{- if $summary.LastStatusTransition.From }}
-_[{{ $summary.Key }}]({{ $summary.Link }}) ({{ $summary.LastStatusTransition.From }} --> {{  $summary.LastStatusTransition.To }})_:
-{{- else }}
+    {{- range $summary := $summariesByDate }}
+        {{- if $summary.LastStatusTransition.From }}
+_[{{ $summary.Key }}]({{ $summary.Link }}) ({{ $summary.LastStatusTransition.From }} --> {{ $summary.LastStatusTransition.To }})_:
+        {{- else }}
 _[{{ $summary.Key }}]({{ $summary.Link }}) (Still In Progress)_
+        {{- end }}
+        {{- range $commentLine := $summary.LastComment.Body | toSlice }}
+> {{ $commentLine | cleanJiraUserMentions | toMarkdownLinks | cleanJiraImages }}
+        {{- end }}
+    {{- end }}
+  {{- end }}
+  =======================
 {{- end }}
-{{- range $commentLine := $summary.LastComment.Body | toSlice }}
->{{ $commentLine | cleanJiraLinks | cleanJiraImages }}
-{{- end }}
-{{- end }}
-{{ end }}

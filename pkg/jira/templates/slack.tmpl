@@ -2,14 +2,18 @@
 *{{ $userName }}*:
   {{- range $date, $summariesByDate := $userSummaries }}
 *{{ $date | toDayOfWeek }} ({{ $date }})*:
-    {{- range $summary := $summariesByDate }}
-        {{- if $summary.LastStatusTransition.From }}
-_[{{ $summary.Key }}]({{ $summary.Link }}) ({{ $summary.LastStatusTransition.From }} --> {{ $summary.LastStatusTransition.To }})_:
+    {{- range $jiraIssue := $summariesByDate }}
+        {{- if $jiraIssue.LastStatusTransition.From }}
+_[{{ $jiraIssue.Key }}]({{ $jiraIssue.Link }}) ({{ $jiraIssue.LastStatusTransition.From }} --> {{ $jiraIssue.LastStatusTransition.To }})_:
         {{- else }}
-_[{{ $summary.Key }}]({{ $summary.Link }}) (Still In Progress)_
+_[{{ $jiraIssue.Key }}]({{ $jiraIssue.Link }}) (Still In Progress)_
         {{- end }}
-        {{- range $comment := $summary.Comments }}
+        {{- if eq (len $jiraIssue.Comments) 0 }}
+> {{ $jiraIssue.Summary }}
+        {{- else }}
+                {{- range $comment := $jiraIssue.Comments }}
 > {{ $comment.Body | cleanJiraUserMentions | toMarkdownLinks | cleanJiraImages }}
+                {{- end }}
         {{- end }}
     {{- end }}
   {{- end }}

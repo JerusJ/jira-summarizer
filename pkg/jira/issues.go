@@ -23,7 +23,21 @@ type Issue struct {
 
 // IssueFields contains fields of an issue.
 type IssueFields struct {
-	Summary string `json:"summary"`
+	Summary     string `json:"summary"`
+	Description string `json:"description"`
+	Project     struct {
+		Key string `json:"key"`
+	} `json:"project"`
+	Issuetype struct {
+		Name string `json:"name"`
+	} `json:"issuetype"`
+	Assignee struct {
+		Name string `json:"name"`
+	} `json:"assignee"`
+	Reporter struct {
+		Name string `json:"name"`
+	} `json:"reporter"`
+	Labels []string `json:"labels"`
 }
 
 // Changelog contains the history of changes to an issue.
@@ -74,6 +88,7 @@ type StatusTransition struct {
 type IssueSummary struct {
 	Key               string
 	Link              string
+	Summary           string
 	Comments          []Comment
 	StatusTransitions []StatusTransition
 
@@ -85,7 +100,7 @@ type IssueSummary struct {
 func (client *JiraClient) FetchAssignedIssues(ctx context.Context, user string, start, end time.Time) ([]Issue, error) {
 	apiURL := fmt.Sprintf("%s/rest/api/2/search", client.BaseURL)
 	jql := fmt.Sprintf(
-		"assignee = %s AND createdDate >= \"%s\" AND createdDate <= \"%s\"",
+		"assignee = %s AND updatedDate >= \"%s\" AND updatedDate <= \"%s\"",
 		user,
 		start.Format("2006-01-02"),
 		end.Format("2006-01-02"),
@@ -231,8 +246,9 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDateForUser(ctx context.C
 			issueSummary, ok := summariesByDate[dateStr][issue.Key]
 			if !ok {
 				issueSummary = &IssueSummary{
-					Key:  issue.Key,
-					Link: client.getLink(issue.Key),
+					Key:     issue.Key,
+					Link:    client.getLink(issue.Key),
+					Summary: issue.Fields.Summary,
 				}
 				summariesByDate[dateStr][issue.Key] = issueSummary
 			}
@@ -252,8 +268,9 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDateForUser(ctx context.C
 			issueSummary, ok := summariesByDate[dateStr][issue.Key]
 			if !ok {
 				issueSummary = &IssueSummary{
-					Key:  issue.Key,
-					Link: client.getLink(issue.Key),
+					Key:     issue.Key,
+					Link:    client.getLink(issue.Key),
+					Summary: issue.Fields.Summary,
 				}
 				summariesByDate[dateStr][issue.Key] = issueSummary
 			}

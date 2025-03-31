@@ -8,8 +8,8 @@ _[{{ $summary.Key }}]({{ $summary.Link }}) ({{ $summary.LastStatusTransition.Fro
         {{- else }}
 _[{{ $summary.Key }}]({{ $summary.Link }}) (Still In Progress)_
         {{- end }}
-        {{- range $commentLine := $summary.LastComment.Body | toSlice }}
-> {{ $commentLine | cleanJiraUserMentions | toMarkdownLinks | cleanJiraImages }}
+        {{- range $comment := $summary.Comments }}
+> {{ $comment.Body | cleanJiraUserMentions | toMarkdownLinks | cleanJiraImages }}
         {{- end }}
     {{- end }}
   {{- end }}

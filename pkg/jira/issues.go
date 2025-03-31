@@ -109,7 +109,7 @@ func (client *JiraClient) FetchAssignedIssues(ctx context.Context, user string, 
 }
 
 // Helper function to filter status transitions within a date range and by author email
-func filterStatusTransitions(issue Issue, startDate, endDate time.Time, email string) ([]StatusTransition, error) {
+func filterStatusTransitions(issue Issue, startDate, endDate time.Time, userId string) ([]StatusTransition, error) {
 	var statusTransitions []StatusTransition
 	for _, history := range issue.Changelog.Histories {
 		historyTime, err := time.Parse(constants.DateLayout, history.Created)
@@ -119,7 +119,7 @@ func filterStatusTransitions(issue Issue, startDate, endDate time.Time, email st
 		if historyTime.Before(startDate) || historyTime.After(endDate) {
 			continue
 		}
-		if history.Author.EmailAddress != email {
+		if history.Author.EmailAddress != userId && history.Author.AccountID != userId {
 			continue
 		}
 		for _, item := range history.Items {
@@ -213,12 +213,12 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDateForUser(ctx context.C
 	}
 
 	for _, issue := range issues {
-		statusTransitions, err := filterStatusTransitions(issue, startDate, endDate, userId)
+		comments, err := client.fetchIssueCommentsWithinDateRange(ctx, issue.Key, startDate, endDate, userId)
 		if err != nil {
 			return nil, err
 		}
 
-		comments, err := client.fetchIssueCommentsWithinDateRange(ctx, issue.Key, startDate, endDate, userId)
+		statusTransitions, err := filterStatusTransitions(issue, startDate, endDate, userId)
 		if err != nil {
 			return nil, err
 		}

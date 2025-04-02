@@ -86,9 +86,9 @@ type StatusTransition struct {
 
 // IssueSummary contains the summarized data for an issue.
 type IssueSummary struct {
-	Key               string
+	Issue Issue
+
 	Link              string
-	Summary           string
 	Comments          []Comment
 	StatusTransitions []StatusTransition
 
@@ -246,9 +246,8 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDateForUser(ctx context.C
 			issueSummary, ok := summariesByDate[dateStr][issue.Key]
 			if !ok {
 				issueSummary = &IssueSummary{
-					Key:     issue.Key,
-					Link:    client.getLink(issue.Key),
-					Summary: issue.Fields.Summary,
+					Issue: issue,
+					Link:  client.getLink(issue.Key),
 				}
 				summariesByDate[dateStr][issue.Key] = issueSummary
 			}
@@ -268,9 +267,8 @@ func (client *JiraClient) FetchAssignedIssueSummariesByDateForUser(ctx context.C
 			issueSummary, ok := summariesByDate[dateStr][issue.Key]
 			if !ok {
 				issueSummary = &IssueSummary{
-					Key:     issue.Key,
-					Link:    client.getLink(issue.Key),
-					Summary: issue.Fields.Summary,
+					Issue: issue,
+					Link:  client.getLink(issue.Key),
 				}
 				summariesByDate[dateStr][issue.Key] = issueSummary
 			}

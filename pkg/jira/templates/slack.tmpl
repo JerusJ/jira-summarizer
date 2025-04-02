@@ -4,12 +4,12 @@
 *{{ $date | toDayOfWeek }} ({{ $date }})*:
     {{- range $jiraIssue := $summariesByDate }}
         {{- if $jiraIssue.LastStatusTransition.From }}
-_[{{ $jiraIssue.Key }}]({{ $jiraIssue.Link }}) ({{ $jiraIssue.LastStatusTransition.From }} --> {{ $jiraIssue.LastStatusTransition.To }})_:
+_[{{ $jiraIssue.Issue.Key }}: {{ $jiraIssue.Issue.Fields.Summary }}]({{ $jiraIssue.Link }}) ({{ $jiraIssue.LastStatusTransition.From }} --> {{ $jiraIssue.LastStatusTransition.To }})_:
         {{- else }}
-_[{{ $jiraIssue.Key }}]({{ $jiraIssue.Link }}) (Still In Progress)_
+_[{{ $jiraIssue.Issue.Key }}]({{ $jiraIssue.Link }}) (Still In Progress)_
         {{- end }}
         {{- if eq (len $jiraIssue.Comments) 0 }}
-> {{ $jiraIssue.Summary }}
+> {{ $jiraIssue.Issue.Fields.Summary }}
         {{- else }}
                 {{- range $comment := $jiraIssue.Comments }}
 > {{ $comment.Body | cleanJiraUserMentions | toMarkdownLinks | cleanJiraImages }}

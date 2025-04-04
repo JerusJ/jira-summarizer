@@ -4,9 +4,9 @@
 *{{ $date | toDayOfWeek }} ({{ $date }})*:
     {{- range $jiraIssue := $summariesByDate }}
         {{- if $jiraIssue.LastStatusTransition.From }}
-_[{{ $jiraIssue.Issue.Key }}: {{ $jiraIssue.Issue.Fields.Summary }}]({{ $jiraIssue.Link }}) ({{ $jiraIssue.LastStatusTransition.From }} --> {{ $jiraIssue.LastStatusTransition.To }})_:
+[{{ $jiraIssue.Issue.Key }}: {{ $jiraIssue.Issue.Fields.Summary }}]({{ $jiraIssue.Link }}) ({{ $jiraIssue.LastStatusTransition.From }} --> {{ $jiraIssue.LastStatusTransition.To }}):
         {{- else }}
-_[{{ $jiraIssue.Issue.Key }}]({{ $jiraIssue.Link }}) (Still In Progress)_
+[{{ $jiraIssue.Issue.Key }}: {{ $jiraIssue.Issue.Fields.Summary }}]({{ $jiraIssue.Link }}) (Still In Progress):
         {{- end }}
         {{- if eq (len $jiraIssue.Comments) 0 }}
 > {{ $jiraIssue.Issue.Fields.Summary }}
